@@ -1,4 +1,4 @@
-module github.com/hyperproofs/hyperproofs-go
+module github.com/sususu5/hyperproofs-go
 
 go 1.16
 
