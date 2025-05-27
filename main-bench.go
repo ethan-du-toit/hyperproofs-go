@@ -7,8 +7,9 @@ import (
 	vc "github.com/hyperproofs/hyperproofs-go/vcs"
 )
 
-const FOLDER = "./pkvk-26"
+// const FOLDER = "./pkvk-26"
 
+/*
 func BenchmarkVCSCommit(L uint8, txnLimit uint64) string {
 	N := uint64(1) << L
 	K := txnLimit
@@ -16,6 +17,8 @@ func BenchmarkVCSCommit(L uint8, txnLimit uint64) string {
 	vcs.KeyGenLoad(16, L, FOLDER, K)
 
 	aFr := vc.GenerateVector(N)
+	fmt.Println("hello World!")
+	fmt.Println(aFr)
 	dt := time.Now()
 	vcs.Commit(aFr, uint64(L))
 	duration := time.Since(dt)
@@ -25,7 +28,7 @@ func BenchmarkVCSCommit(L uint8, txnLimit uint64) string {
 	fmt.Println(vc.SEP)
 	return out
 }
-
+*/
 func BenchmarkVCSOpenAll(L uint8, txnLimit uint64) string {
 	N := uint64(1) << L
 	K := txnLimit

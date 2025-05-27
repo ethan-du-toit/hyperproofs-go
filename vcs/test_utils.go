@@ -1,13 +1,38 @@
 package vcs
 
+/*
+#cgo bn256 CFLAGS:-DMCLBN_FP_UNIT_SIZE=4
+#cgo bn384 CFLAGS:-DMCLBN_FP_UNIT_SIZE=6
+#cgo bn384_256 CFLAGS:-DMCLBN_FP_UNIT_SIZE=6 -DMCLBN_FR_UNIT_SIZE=4
+#cgo CFLAGS: -DMCLBN_FP_UNIT_SIZE=4
+#cgo LDFLAGS: -lmcl
+#include <mcl/bn.h>
+*/
+import "C"
 import (
 	"encoding/binary"
 	"fmt"
 	"os"
 	"sync"
 
+	//"testing"
+	//"strconv"
 	"github.com/alinush/go-mcl"
+	//"github.com/herumi/mcl/ffi/go/mcl"
 )
+
+// export CGO_CFLAGS="-DMCLBN_FP_UNIT_SIZE=4"
+
+type Node struct {
+	addr int64
+	nonce int64
+	val int64
+}
+
+const addrOffset int = 43
+const nonceOffset int = 22
+const valOffset int = 1
+const padding int = 0x0
 
 func getKeyValuesFr(db map[uint64]mcl.Fr) ([]uint64, []mcl.Fr) {
 
@@ -39,26 +64,18 @@ func fillRange(aFr *[]mcl.Fr, start uint64, stop uint64, wg *sync.WaitGroup) {
 }
 
 func GenerateVector(N uint64) []mcl.Fr {
-	var aFr []mcl.Fr
-	aFr = make([]mcl.Fr, N)
+	aFr := make([]mcl.Fr, N)
 
-	step := N / 16
-	if step < 1 {
-		step = 1
+	// Initialize all accounts with default values
+	for i := uint64(0); i < N; i++ {
+		var node Node
+		node.addr = 0
+		node.nonce = 0
+		node.val = 1
+		
+		var nodeElement int64 = node.val << valOffset
+		aFr[i].SetInt64(nodeElement)
 	}
-
-	start := uint64(0)
-	stop := start + step
-	stop = minUint64(stop, N)
-	var wg sync.WaitGroup
-	for start < N {
-		wg.Add(1)
-		fillRange(&aFr, start, stop, &wg)
-		start += step
-		stop += step
-		stop = minUint64(stop, N)
-	}
-	wg.Wait()
 
 	return aFr
 }

@@ -1,0 +1,27 @@
+The code flow: 
+FIRST ITERATION: 
+1. Generate the vector 1
+2. COMMIT to the vector 1
+3. OpenAll to get \pi (the proof tree)
+4. Get proof path for random location/index 
+5. Generate random delta index (changes location/index) - deltaVec
+6. Use Verify() to VERIFY the \pi, C, vector 
+7. Use VerifyMemoized for faster Verification
+8. UPDATE Proof Tree FIRST TIME (only at the positions that have changes) - using deltaVec --Faster than use OpenAll 
+
+
+SECOND ITERATION: 
+1. Update vector: SecondaryStateUpdate() to get update VECTOR 2
+2. Get proof paths based on updated index - GetProofPath(indexVec)
+3. UPDATE commitment C => C' based on changes in deltaVec - UpdateComVec(digest, indexVec, deltaVec)
+4. VERIFY the new/updated proof tree using - VerifyMemoized(digest, indexVec, valueVec, proofVec)
+5. UPDATE Proof Tree for the VECTOR 1 UpdateProofTreeBulk(indexVec, deltaVec)
+
+
+THIRD ITERATION: 
+1. Update vector 2nd times: SecondaryStateUpdate() to get update VECTOR 3
+2. Get proof paths based on updated index - GetProofPath(indexVec) 2nd TIMES
+3. UPDATE commitment C' => C" based on changes in deltaVec 2nd TIMES
+4. VERIFY the new/updated proof tree using 2nd TIMES
+5. AGGREATE proofs in the 2nd proof tree all together + verify the aggregated proof
+6. UPDATE the proof tree again for VECTOR 2 UpdateProofTreeBulk

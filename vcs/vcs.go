@@ -1,6 +1,8 @@
 package vcs
 
 import (
+	"fmt"
+
 	"github.com/alinush/go-mcl"
 	"github.com/hyperproofs/gipa-go/batch"
 	"github.com/hyperproofs/gipa-go/cm"
@@ -56,7 +58,7 @@ type VCS struct {
 // Space for UPK and PRK will be created when keys are created and saved.
 // This reduces the memory footprint.
 func (vcs *VCS) Init(L uint8, folder string, txnLimit uint64) {
-
+	// Note this has been modified from 16 
 	NFILES = 16
 	PRKNAME = "/prk-%02d.data"
 	VRKNAME = "/vrk.data"
@@ -128,14 +130,15 @@ func (vcs *VCS) TrapdoorsGen() {
 	for i := range vcs.trapdoorsSubOne {
 		mcl.G2Mul(&vcs.VRKSubOne[i], &vcs.H, &vcs.trapdoorsSubOne[i])
 	}
-
+	
 	// Generate VRKSubOneRev: h^(s_1-1), h^(s_2-1), ....
 	for i := range vcs.trapdoorsSubOneRev {
 		mcl.G2Mul(&vcs.VRKSubOneRev[i], &vcs.H, &vcs.trapdoorsSubOneRev[i])
 	}
-
+	
 	// Generate alpha and beta for KZG
 	vcs.alpha.Random()
+	
 	vcs.beta.Random()
 
 	vcs.SaveTrapdoor()
@@ -202,16 +205,14 @@ func (vcs *VCS) OpenAll(a []mcl.Fr) {
 
 // Proof 1...l
 // Index 0 has one 0-variables, index L - 1 has L-1 variable
-func (vcs *VCS) GetProofPath(index uint64) []mcl.G1 {
-
-	proof := make([]mcl.G1, vcs.L)
-	id := index
-	for j := uint8(0); j < vcs.L; j++ {
-		id = id >> 1 // Hacky. Need to write docs for this.
-		proof[j] = vcs.ProofTree[vcs.L-j-1][id]
-		// fmt.Println(index, vcs.L-j-1, k)
-	}
-	return proof
+func (vcs *VCS) GetProofPath(proofTree [][]mcl.G1, index uint64, L uint8) []mcl.G1 {
+    proof := make([]mcl.G1, L)
+    id := index
+    for j := uint8(0); j < L; j++ {
+        id = id >> 1
+        proof[j] = proofTree[L-j-1][id]
+    }
+    return proof
 }
 
 type TreeGPS struct {
@@ -251,6 +252,7 @@ func (vcs *VCS) Verify(digest mcl.G1, index uint64, a_i mcl.Fr, proof []mcl.G1) 
 
 	mcl.MillerLoopVec(&rhs, ps, qs)
 	mcl.FinalExp(&rhs, &rhs)
+
 	return rhs.IsOne()
 }
 
@@ -297,7 +299,7 @@ func (vcs *VCS) VerifyMemoized(digest mcl.G1, indexVec []uint64, a_i []mcl.Fr, p
 			}
 			index = index >> 1
 		}
-
+		fmt.Println("val: ", a_i[t].GetString(10))
 		mcl.G1Mul(&p, &vcs.G, &a_i[t])
 		mcl.G1Sub(&p, &p, &digest)
 		mcl.MillerLoop(&lhs, &p, &vcs.H)
@@ -396,53 +398,65 @@ func (vcs *VCS) UpdateProofTree(updateindex uint64, delta mcl.Fr) {
 	}
 }
 
-func (vcs *VCS) UpdateProofTreeBulk(updateindexVec []uint64, deltaVec []mcl.Fr) int {
-
-	// ProofTree[][]
-	var q_i mcl.G1
-
-	var x, upk_i uint8 // These will serve as GPS in the tree
-	var y uint64       // These will serve as GPS in the tree
-
-	g1Db := make(map[TreeGPS][]mcl.G1)
-	frDb := make(map[TreeGPS][]mcl.Fr)
-
-	for t := range updateindexVec {
-		updateindex := updateindexVec[t]
-		delta := deltaVec[t]
-
-		updateindexBinary := ToBinary(updateindex, vcs.L)       // LSB first
-		updateindexBinary = ReverseSliceBool(updateindexBinary) // MSB first
-
-		upk := vcs.GetUpk(updateindex)                     // Pop upk_{u,l} as it containts ell variables.
-		upk = append([]mcl.G1{vcs.G}, upk[:len(upk)-1]...) // Since the root of the proof tree contains only ell - 1 variables, we need to pop the upk.
-
-		L := vcs.L
-		Y := FindTreeGPS(updateindex, int(L))
-		// Start from the top of the prooftree (which implies start from the bottom of the UPK tree)
-		for i := uint8(0); i < L; i++ {
-			x = i
-			y = Y[i]
-			upk_i = L - i - 1
-			loc := TreeGPS{x, y}
-
-			q_i = upk[upk_i]
-
-			if !updateindexBinary[x] {
-				mcl.G1Neg(&q_i, &q_i)
-			}
-			g1Db[loc] = append(g1Db[loc], q_i)
-			frDb[loc] = append(frDb[loc], delta)
-		}
-	}
-
-	for key := range g1Db {
-		A := g1Db[key]
-		B := frDb[key]
-		mcl.G1MulVec(&q_i, A, B)
-		mcl.G1Add(&vcs.ProofTree[key.level][key.index], &vcs.ProofTree[key.level][key.index], &q_i)
-	}
-	return len(g1Db)
+// Modified function that takes a proof tree as a parameter
+func (vcs *VCS) UpdateProofTreeBulk(proofTree [][]mcl.G1, updateindexVec []uint64, deltaVec []mcl.Fr) ([][]mcl.G1, int) {
+    var q_i mcl.G1
+    var x, upk_i uint8
+    var y uint64
+ 
+    // Make a deep copy of the proof tree to avoid modifying the original
+    newProofTree := make([][]mcl.G1, len(proofTree))
+    for i := range proofTree {
+        newProofTree[i] = make([]mcl.G1, len(proofTree[i]))
+        copy(newProofTree[i], proofTree[i])
+    }
+ 
+    g1Db := make(map[TreeGPS][]mcl.G1)
+    frDb := make(map[TreeGPS][]mcl.Fr)
+ 
+    for t := range updateindexVec {
+        updateindex := updateindexVec[t]
+        delta := deltaVec[t]
+ 
+        updateindexBinary := ToBinary(updateindex, vcs.L)       // LSB first
+        updateindexBinary = ReverseSliceBool(updateindexBinary) // MSB first
+ 
+        upk := vcs.GetUpk(updateindex)                     // Pop upk_{u,l} as it containts ell variables.
+        upk = append([]mcl.G1{vcs.G}, upk[:len(upk)-1]...) // Since the root of the proof tree contains only ell - 1 variables, we need to pop the upk.
+ 
+        L := vcs.L
+        Y := FindTreeGPS(updateindex, int(L))
+        // Start from the top of the prooftree (which implies start from the bottom of the UPK tree)
+        for i := uint8(0); i < L; i++ {
+            x = i
+            y = Y[i]
+            upk_i = L - i - 1
+            loc := TreeGPS{x, y}
+ 
+            q_i = upk[upk_i]
+ 
+            if !updateindexBinary[x] {
+                mcl.G1Neg(&q_i, &q_i)
+            }
+            g1Db[loc] = append(g1Db[loc], q_i)
+            frDb[loc] = append(frDb[loc], delta)
+        }
+    }
+ 
+    for key := range g1Db {
+        A := g1Db[key]
+        B := frDb[key]
+        mcl.G1MulVec(&q_i, A, B)
+        // Ensure the dimensions exist in the new proof tree
+        if int(key.level) >= len(newProofTree) {
+            continue // Skip if level is out of bounds
+        }
+        if int(key.index) >= len(newProofTree[key.level]) {
+            continue // Skip if index is out of bounds
+        }
+        mcl.G1Add(&newProofTree[key.level][key.index], &newProofTree[key.level][key.index], &q_i)
+    }
+    return newProofTree, len(g1Db)
 }
 
 // g^{(1-s_1)}, g^{(1-s_2)(1-s_1)}, g^{(1-s_3)(1-s_2)(1-s_1)}

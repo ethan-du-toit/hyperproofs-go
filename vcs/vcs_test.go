@@ -38,14 +38,27 @@ func TestVCS(t *testing.T) {
 		var digest mcl.G1
 		var status bool
 
+		//================== END OF FIRST ITERATION ================//
 		{
+			// State accounts
 			aFr := GenerateVector(N)
+
+			// Genrate commitment
 			digest = vcs.Commit(aFr, uint64(L))
+
+			// Generate proofs (OpenAll does not return anything)
 			vcs.OpenAll(aFr)
 
+			// Line 52-57 generates random transactions by:
+			// 1. Randomly selecting an account index from the state vector
+			// 2. Getting the proof path for that account
+			// 3. Generating a random delta value for the transaction
+			// 4. Storing the current account value
+			// This simulates K random transactions that will be used to test the VCS functionality
 			for k := 0; k < K; k++ {
 				indexVec[k] = uint64(rand.Intn(int(N))) // Can contain duplicates
-				proofVec[k] = vcs.GetProofPath(indexVec[k])
+				// fmt.Println("indexVec: ", indexVec[k])
+				// proofVec[k] = vcs.GetProofPath(indexVec[k])
 				deltaVec[k].Random()
 				valueVec[k] = aFr[indexVec[k]]
 			}
@@ -74,20 +87,26 @@ func TestVCS(t *testing.T) {
 		})
 
 		// Make some changes to the vector positions.
+		//Update proof tree \pi => \pi'
+		//CAN USE UpdateProofTreeBulk INSTEAD.
 		for k := 0; k < K; k++ {
 			loc := indexVec[k]
 			delta := deltaVec[k]
 			vcs.UpdateProofTree(loc, delta)
 		}
+		//================== END OF FIRST ITERATION ================//
 
-		// Update the value vector
+		//================== BEGIN OF SECOND ITERATION ================//
+
+		// Update the account time 1
 		valueVec = SecondaryStateUpdate(indexVec, deltaVec, valueVec)
 
-		// Get latest proofs
+		// Get the updated proofs
 		for k := 0; k < K; k++ {
-			proofVec[k] = vcs.GetProofPath(indexVec[k])
+			// proofVec[k] = vcs.GetProofPath(indexVec[k])
 		}
 
+		//Update commitment C => C'
 		digest = vcs.UpdateComVec(digest, indexVec, deltaVec)
 
 		t.Run(fmt.Sprintf("%d/UpdateProofTree;", L), func(t *testing.T) {
@@ -98,15 +117,28 @@ func TestVCS(t *testing.T) {
 			}
 		})
 
-		vcs.UpdateProofTreeBulk(indexVec, deltaVec)
+		// UpdateProofTreeBulk performs batch updates to the proof tree in a more efficient way than individual updates.
+		// It takes a list of indices and their corresponding delta values, and updates all the proofs at once.
+		// This is more efficient than calling UpdateProofTree multiple times because:
+		// 1. It reduces the number of tree traversals
+		// 2. It can batch operations at each level of the tree
+		// 3. It minimizes redundant computations by grouping updates to the same tree nodes
+		// The function returns the number of unique tree nodes that were updated.
+		// vcs.UpdateProofTreeBulk(indexVec, deltaVec)
 
+		//================== END OF SECOND ITERATION ================//
+
+		//================== BEGIN OF THIRD ITERATION ================//
 		// Update the value vector
+		//Update the account time 2
 		valueVec = SecondaryStateUpdate(indexVec, deltaVec, valueVec)
 
-		// Get latest proofs
+		// Get \pi' ==> \pi''
 		for k := 0; k < K; k++ {
-			proofVec[k] = vcs.GetProofPath(indexVec[k])
+			// proofVec[k] = vcs.GetProofPath(indexVec[k])
 		}
+
+		// Update C' ==> C"
 		digest = vcs.UpdateComVec(digest, indexVec, deltaVec)
 
 		t.Run(fmt.Sprintf("%d/UpdateProofTreeBulk;", L), func(t *testing.T) {
@@ -129,10 +161,12 @@ func TestVCS(t *testing.T) {
 		})
 
 		// Simple do another round of updates to check if aggregated succeeded
-		vcs.UpdateProofTreeBulk(indexVec, deltaVec)
+		// vcs.UpdateProofTreeBulk(indexVec, deltaVec)
+		//================== END OF THIRD ITERATION ================//
+
 		valueVec = SecondaryStateUpdate(indexVec, deltaVec, valueVec)
 		for k := 0; k < K; k++ {
-			proofVec[k] = vcs.GetProofPath(indexVec[k])
+			// proofVec[k] = vcs.GetProofPath(indexVec[k])
 		}
 		digest = vcs.UpdateComVec(digest, indexVec, deltaVec)
 
