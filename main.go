@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/alinush/go-mcl"
-	vc "github.com/sususu5/hyperproofs-go/vcs"
+	vc "github.com/ethan-du-toit/hyperproofs-go/vcs"
 )
 
 const FOLDER = "./pkvk-02"
