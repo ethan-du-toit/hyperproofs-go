@@ -2,6 +2,7 @@ package vcs
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/alinush/go-mcl"
 	"github.com/hyperproofs/gipa-go/batch"
@@ -469,4 +470,26 @@ func (vcs *VCS) GetUpk(i uint64) []mcl.G1 {
 		upk[j-1] = vcs.UPK[j][k]
 	}
 	return upk
+}
+
+func (vcs *VCS) Pin(pinner runtime.Pinner) {
+
+	pinner.Pin(&vcs.PRK[0])
+	pinner.Pin(&vcs.UPK[0])
+	for i := 0; i < len(vcs.UPK); i++ {
+		pinner.Pin(&vcs.UPK[i][0])
+	}
+	pinner.Pin(&vcs.VRK[0])
+	pinner.Pin(&vcs.VRKSubOne[0])
+	pinner.Pin(&vcs.VRKSubOneRev[0])
+
+	pinner.Pin(&vcs.trapdoors[0])
+	pinner.Pin(&vcs.trapdoorsSubOne[0])
+	pinner.Pin(&vcs.trapdoorsSubOneRev[0])
+	pinner.Pin(&vcs.pow2[0])
+
+	pinner.Pin(&vcs.ProofTree[0])
+	for i := 0; i < len(vcs.ProofTree); i++ {
+		pinner.Pin(&vcs.ProofTree[i][0])
+	}
 }
