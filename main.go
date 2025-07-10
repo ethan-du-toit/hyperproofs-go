@@ -41,12 +41,11 @@ func main() {
 	args := os.Args
 
 	if len(args) == 1 {
-		var L uint8
-		L = uint8(2)
-		// _ = hyperGenerateKeys(L, false)
-		slicingVCS(L, 4)
-		// BenchmarkVCSCommit(L, 20)
-		fmt.Println("Finished")
+		L := uint8(16)
+		_ = hyperGenerateKeys(L, false)
+
+		//L = uint8(23)
+		//_ = hyperGenerateKeys(L, false)
 	}
 }
 
