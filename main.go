@@ -41,6 +41,9 @@ func main() {
 	args := os.Args
 
 	if len(args) == 1 {
+		//L := uint8(4)
+		//_ =  hyperGenerateKeys(L, false)
+
 		L := uint8(16)
 		_ = hyperGenerateKeys(L, false)
 

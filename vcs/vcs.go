@@ -2,9 +2,6 @@ package vcs
 
 import (
 	"fmt"
-	"runtime"
-	"unsafe"
-	"reflect"
 
 	"github.com/alinush/go-mcl"
 	"github.com/hyperproofs/gipa-go/batch"
@@ -474,28 +471,26 @@ func (vcs *VCS) GetUpk(i uint64) []mcl.G1 {
 	return upk
 }
 
-func pinSlice(pinner runtime.Pinner, hdr *reflect.SliceHeader) {
-	pinner.Pin(unsafe.Pointer(hdr.Data))
-}
+func (vcs *VCS) VerifyFullTree(digest mcl.G1, a_i []mcl.Fr, fullTree [][]mcl.G1) bool {
+	// fmt.Println(vcs.VRKSubOneRev[i].IsEqual(&qs[i]), vcs.VRKSubOneRev[i].IsZero())
+	// the easiest way to do this is for sure just to openall and check if they are equal
+	// openAll just uses public parameters so i think this is licit
+	// and yes, openAll is slow, but what is SLOWER is going through every proof path and verifying them seperately
+	// (seriously, i tried)
+	// i *think*, cryptographically, there should be a really fast way of doing this, but we'll get on that later
+	
+	saved := vcs.ProofTree
+	vcs.OpenAll(a_i)
 
-func (vcs *VCS) Pin(pinner runtime.Pinner) {
-
-	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.PRK)))
-	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.UPK)))
-	for i := 0; i < len(vcs.UPK); i++ {
-		pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.UPK[i])))
+	for i := 0; i < len(fullTree); i++ {
+		for j := 0; j < len(fullTree[i]); j++ {
+			if vcs.ProofTree[i][j] != fullTree[i][j] {
+				vcs.ProofTree = saved
+				return false
+			}
+		}
 	}
-	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.VRK)))
-	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.VRKSubOne)))
-	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.VRKSubOneRev)))
 
-	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.trapdoors)))
-	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.trapdoorsSubOne)))
-	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.trapdoorsSubOneRev)))
-	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.pow2)))
-
-	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.ProofTree)))
-	for i := 0; i < len(vcs.ProofTree); i++ {
-		pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.ProofTree[i])))
-	}
+	vcs.ProofTree = saved
+	return true
 }
