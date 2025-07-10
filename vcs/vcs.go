@@ -3,6 +3,8 @@ package vcs
 import (
 	"fmt"
 	"runtime"
+	"unsafe"
+	"reflect"
 
 	"github.com/alinush/go-mcl"
 	"github.com/hyperproofs/gipa-go/batch"
@@ -472,24 +474,28 @@ func (vcs *VCS) GetUpk(i uint64) []mcl.G1 {
 	return upk
 }
 
+func pinSlice(pinner runtime.Pinner, hdr *reflect.SliceHeader) {
+	pinner.Pin(unsafe.Pointer(hdr.Data))
+}
+
 func (vcs *VCS) Pin(pinner runtime.Pinner) {
 
-	pinner.Pin(&vcs.PRK[0])
-	pinner.Pin(&vcs.UPK[0])
+	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.PRK)))
+	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.UPK)))
 	for i := 0; i < len(vcs.UPK); i++ {
-		pinner.Pin(&vcs.UPK[i][0])
+		pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.UPK[i])))
 	}
-	pinner.Pin(&vcs.VRK[0])
-	pinner.Pin(&vcs.VRKSubOne[0])
-	pinner.Pin(&vcs.VRKSubOneRev[0])
+	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.VRK)))
+	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.VRKSubOne)))
+	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.VRKSubOneRev)))
 
-	pinner.Pin(&vcs.trapdoors[0])
-	pinner.Pin(&vcs.trapdoorsSubOne[0])
-	pinner.Pin(&vcs.trapdoorsSubOneRev[0])
-	pinner.Pin(&vcs.pow2[0])
+	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.trapdoors)))
+	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.trapdoorsSubOne)))
+	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.trapdoorsSubOneRev)))
+	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.pow2)))
 
-	pinner.Pin(&vcs.ProofTree[0])
+	pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.ProofTree)))
 	for i := 0; i < len(vcs.ProofTree); i++ {
-		pinner.Pin(&vcs.ProofTree[i][0])
+		pinSlice(pinner, (*reflect.SliceHeader)(unsafe.Pointer(&vcs.ProofTree[i])))
 	}
 }
