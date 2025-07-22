@@ -484,7 +484,7 @@ func (vcs *VCS) VerifyFullTree(digest mcl.G1, a_i []mcl.Fr, fullTree [][]mcl.G1)
 
 	for i := 0; i < len(fullTree); i++ {
 		for j := 0; j < len(fullTree[i]); j++ {
-			if vcs.ProofTree[i][j] != fullTree[i][j] {
+			if !vcs.ProofTree[i][j].IsEqual(&fullTree[i][j]) {
 				vcs.ProofTree = saved
 				return false
 			}

@@ -44,7 +44,7 @@ func main() {
 		//L := uint8(4)
 		//_ =  hyperGenerateKeys(L, false)
 
-		L := uint8(16)
+		L := uint8(23)
 		_ = hyperGenerateKeys(L, false)
 
 		//L = uint8(23)
