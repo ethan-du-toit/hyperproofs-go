@@ -398,6 +398,58 @@ func (vcs *VCS) UpdateProofTree(updateindex uint64, delta mcl.Fr) {
 	}
 }
 
+func (vcs *VCS) UpdateProofTreeBulkInPlace(proofTree [][]mcl.G1, updateindexVec []uint64, deltaVec []mcl.Fr) {
+    var q_i mcl.G1
+    var x, upk_i uint8
+    var y uint64
+  
+    g1Db := make(map[TreeGPS][]mcl.G1)
+    frDb := make(map[TreeGPS][]mcl.Fr)
+ 
+    for t := range updateindexVec {
+        updateindex := updateindexVec[t]
+        delta := deltaVec[t]
+ 
+        updateindexBinary := ToBinary(updateindex, vcs.L)       // LSB first
+        updateindexBinary = ReverseSliceBool(updateindexBinary) // MSB first
+ 
+        upk := vcs.GetUpk(updateindex)                     // Pop upk_{u,l} as it containts ell variables.
+        upk = append([]mcl.G1{vcs.G}, upk[:len(upk)-1]...) // Since the root of the proof tree contains only ell - 1 variables, we need to pop the upk.
+ 
+        L := vcs.L
+        Y := FindTreeGPS(updateindex, int(L))
+        // Start from the top of the prooftree (which implies start from the bottom of the UPK tree)
+        for i := uint8(0); i < L; i++ {
+            x = i
+            y = Y[i]
+            upk_i = L - i - 1
+            loc := TreeGPS{x, y}
+ 
+            q_i = upk[upk_i]
+ 
+            if !updateindexBinary[x] {
+                mcl.G1Neg(&q_i, &q_i)
+            }
+            g1Db[loc] = append(g1Db[loc], q_i)
+            frDb[loc] = append(frDb[loc], delta)
+        }
+    }
+ 
+    for key := range g1Db {
+        A := g1Db[key]
+        B := frDb[key]
+        mcl.G1MulVec(&q_i, A, B)
+        // Ensure the dimensions exist in the new proof tree
+        if int(key.level) >= len(proofTree) {
+            continue // Skip if level is out of bounds
+        }
+        if int(key.index) >= len(proofTree[key.level]) {
+            continue // Skip if index is out of bounds
+        }
+        mcl.G1Add(&proofTree[key.level][key.index], &proofTree[key.level][key.index], &q_i)
+    }
+}
+
 // Modified function that takes a proof tree as a parameter
 func (vcs *VCS) UpdateProofTreeBulk(proofTree [][]mcl.G1, updateindexVec []uint64, deltaVec []mcl.Fr) ([][]mcl.G1, int) {
     var q_i mcl.G1
