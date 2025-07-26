@@ -368,6 +368,34 @@ func (vcs *VCS) UpdateProof(proof []mcl.G1, localindex uint64, updateindex uint6
 	return newProof
 }
 
+func (vcs *VCS) UpdateProofInPlace(proof []mcl.G1, localindex uint64, updateindex uint64, delta mcl.Fr) {
+
+	var temp mcl.G1
+	updateindexBinary := ToBinary(updateindex, vcs.L) // LSB first
+	localindexBinary := ToBinary(localindex, vcs.L)   // LSB first
+	// upk := vcs.UPK[updateindex]
+	upk := vcs.GetUpk(updateindex)
+	L := int(vcs.L)
+	for i := L; i > 0; i-- {
+		if i-1 > 0 {
+			mcl.G1Mul(&temp, &upk[i-2], &delta)
+		} else {
+			mcl.G1Mul(&temp, &vcs.G, &delta)
+		}
+		if updateindexBinary[i-1] == false && localindexBinary[i-1] == true {
+			mcl.G1Sub(&proof[i-1], &proof[i-1], &temp)
+			break
+		} else if updateindexBinary[i-1] == true && localindexBinary[i-1] == false {
+			mcl.G1Add(&proof[i-1], &proof[i-1], &temp)
+			break
+		} else if updateindexBinary[i-1] == false && localindexBinary[i-1] == false {
+			mcl.G1Sub(&proof[i-1], &proof[i-1], &temp)
+		} else {
+			mcl.G1Add(&proof[i-1], &proof[i-1], &temp)
+		}
+	}
+}
+
 func (vcs *VCS) UpdateProofTree(updateindex uint64, delta mcl.Fr) {
 
 	var q_i mcl.G1
